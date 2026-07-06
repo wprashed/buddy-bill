@@ -3,7 +3,7 @@
 interface AvatarProps {
   name: string;
   color?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
 }
 
 export default function Avatar({ name, color = "#6366f1", size = "md" }: AvatarProps) {
@@ -15,9 +15,11 @@ export default function Avatar({ name, color = "#6366f1", size = "md" }: AvatarP
     .slice(0, 2);
 
   const sizeClasses = {
+    xs: "w-6 h-6 text-[10px]",
     sm: "w-8 h-8 text-xs",
     md: "w-10 h-10 text-sm",
     lg: "w-14 h-14 text-lg",
+    xl: "w-20 h-20 text-2xl",
   };
 
   return (

@@ -17,6 +17,7 @@ export async function GET() {
       name: users.name,
       email: users.email,
       avatarColor: users.avatarColor,
+      darkMode: users.darkMode,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -24,7 +25,6 @@ export async function GET() {
   return NextResponse.json(allUsers);
 }
 
-// POST here is for adding friends (from dashboard), not for auth registration
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, email, password } = body;
@@ -33,13 +33,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
   }
 
-  // Check if email already exists
   const existing = await db
     .select({
       id: users.id,
       name: users.name,
       email: users.email,
       avatarColor: users.avatarColor,
+      darkMode: users.darkMode,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
   }
 
   const color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
-  // When adding a friend from dashboard, generate a default password they can use to login
   const defaultPassword = password || "changeme123";
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
@@ -63,6 +62,7 @@ export async function POST(req: NextRequest) {
       name: users.name,
       email: users.email,
       avatarColor: users.avatarColor,
+      darkMode: users.darkMode,
       createdAt: users.createdAt,
     });
 

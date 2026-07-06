@@ -23,3 +23,111 @@
   --color-warning-50: #fffbeb;
   --color-warning-500: #f59e0b;
 }
+
+/* Dark mode styles */
+.dark {
+  --tw-bg-opacity: 1;
+  background-color: rgb(17 24 39 / var(--tw-bg-opacity));
+  color: rgb(243 244 246);
+}
+
+.dark .bg-white {
+  background-color: rgb(31 41 55);
+}
+
+.dark .bg-gray-50 {
+  background-color: rgb(17 24 39);
+}
+
+.dark .bg-gray-100 {
+  background-color: rgb(31 41 55);
+}
+
+.dark .border-gray-200 {
+  border-color: rgb(55 65 81);
+}
+
+.dark .border-gray-100 {
+  border-color: rgb(55 65 81);
+}
+
+.dark .text-gray-900 {
+  color: rgb(243 244 246);
+}
+
+.dark .text-gray-700 {
+  color: rgb(209 213 219);
+}
+
+.dark .text-gray-600 {
+  color: rgb(156 163 175);
+}
+
+.dark .text-gray-500 {
+  color: rgb(156 163 175);
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: rgb(55 65 81);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: rgb(55 65 81);
+  border-color: rgb(75 85 99);
+  color: rgb(243 244 246);
+}
+
+.dark input::placeholder {
+  color: rgb(156 163 175);
+}
+
+/* Chart styles */
+.chart-bar {
+  transition: all 0.3s ease;
+}
+
+.chart-bar:hover {
+  opacity: 0.8;
+}
+
+/* PWA install prompt */
+@media (display-mode: standalone) {
+  .pwa-install-prompt {
+    display: none;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

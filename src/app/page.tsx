@@ -7,29 +7,69 @@ import Dashboard from "@/components/Dashboard";
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for saved user in localStorage
-    const saved = localStorage.getItem("splitease_user");
-    if (saved) {
+    const savedUser = localStorage.getItem("buddybill_user");
+    const savedToken = localStorage.getItem("buddybill_token");
+    
+    if (savedUser && savedToken) {
       try {
-        setCurrentUser(JSON.parse(saved));
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setSessionToken(savedToken);
+        
+        // Apply dark mode
+        if (user.darkMode) {
+          document.documentElement.classList.add("dark");
+        }
       } catch {
-        localStorage.removeItem("splitease_user");
+        localStorage.removeItem("buddybill_user");
+        localStorage.removeItem("buddybill_token");
       }
     }
     setLoading(false);
   }, []);
 
-  const handleLogin = (user: User) => {
+  const handleLogin = (user: User, token: string) => {
     setCurrentUser(user);
-    localStorage.setItem("splitease_user", JSON.stringify(user));
+    setSessionToken(token);
+    localStorage.setItem("buddybill_user", JSON.stringify(user));
+    localStorage.setItem("buddybill_token", token);
+    
+    if (user.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (sessionToken) {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionToken }),
+      });
+    }
+    
     setCurrentUser(null);
-    localStorage.removeItem("splitease_user");
+    setSessionToken("");
+    localStorage.removeItem("buddybill_user");
+    localStorage.removeItem("buddybill_token");
+    document.documentElement.classList.remove("dark");
+  };
+
+  const handleUserUpdate = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem("buddybill_user", JSON.stringify(user));
+    
+    if (user.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   };
 
   if (loading) {
@@ -44,5 +84,12 @@ export default function Home() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  return <Dashboard currentUser={currentUser} onLogout={handleLogout} />;
+  return (
+    <Dashboard
+      currentUser={currentUser}
+      sessionToken={sessionToken}
+      onLogout={handleLogout}
+      onUserUpdate={handleUserUpdate}
+    />
+  );
 }
