@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { systemSettings, adminUsers, adminAuditLog } from "@/db/schema";
+import { systemSettings, adminAuditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
-async function isAdmin(userId: number): Promise<boolean> {
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-  return !!admin;
-}
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 // Get all system settings
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   const settings = await db
     .select()
@@ -32,11 +20,9 @@ export async function GET(req: NextRequest) {
 // Create or update setting
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { userId, key, value, type = "string", category = "general", description } = body;
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { key, value, type = "string", category = "general", description } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
   if (!key) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
@@ -58,7 +44,7 @@ export async function POST(req: NextRequest) {
       .returning();
 
     await db.insert(adminAuditLog).values({
-      adminUserId: parseInt(userId),
+      adminUserId: admin.userId,
       action: "setting_updated",
       entityType: "system_setting",
       entityId: setting.id,
@@ -72,7 +58,7 @@ export async function POST(req: NextRequest) {
       .returning();
 
     await db.insert(adminAuditLog).values({
-      adminUserId: parseInt(userId),
+      adminUserId: admin.userId,
       action: "setting_created",
       entityType: "system_setting",
       entityId: setting.id,
@@ -86,12 +72,10 @@ export async function POST(req: NextRequest) {
 // Delete setting
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
   const key = searchParams.get("key");
 
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   if (!key) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
@@ -106,7 +90,7 @@ export async function DELETE(req: NextRequest) {
   await db.delete(systemSettings).where(eq(systemSettings.key, key));
 
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "setting_deleted",
     entityType: "system_setting",
     oldValue: { key, value: setting?.value },
