@@ -89,14 +89,16 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
   }, [currentUser.id, showArchived]);
 
   useEffect(() => {
-    fetchData();
+    void Promise.resolve().then(fetchData);
   }, [fetchData]);
 
   // Check if user is admin
   useEffect(() => {
     const checkAdmin = async () => {
       try {
-        const res = await fetch(`/api/admin/check?userId=${currentUser.id}`);
+        const res = await fetch("/api/admin/check", {
+          headers: { "x-session-token": sessionToken },
+        });
         const data = await res.json();
         setIsAdmin(data.isAdmin);
       } catch (err) {
@@ -104,7 +106,7 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
       }
     };
     checkAdmin();
-  }, [currentUser.id]);
+  }, [sessionToken]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,6 +202,7 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
     return (
       <AdminDashboard
         currentUser={currentUser}
+        sessionToken={sessionToken}
         onBack={() => setShowAdminDashboard(false)}
       />
     );
@@ -232,7 +235,7 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
           </div>
           <div className="flex items-center gap-2">
             {nudges.length > 0 && (
-              <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+              <button className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500" aria-label="View payment reminders">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               </button>
@@ -240,12 +243,14 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
             <button
               onClick={toggleDarkMode}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              aria-label="Open settings"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -253,6 +258,7 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
               <button
                 onClick={() => setShowAdminDashboard(true)}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-purple-600"
+                aria-label="Open admin dashboard"
                 title="Admin Dashboard"
               >
                 <Shield className="w-5 h-5" />
@@ -267,6 +273,7 @@ export default function Dashboard({ currentUser, sessionToken, onLogout, onUserU
             <button
               onClick={onLogout}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+              aria-label="Sign out"
               title="Sign out"
             >
               <LogOut className="w-4 h-4" />
