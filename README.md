@@ -9,6 +9,8 @@ A modern, full-featured expense splitting application built with Next.js 16, Pos
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?style=flat-square&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-38B2AC?style=flat-square&logo=tailwind-css)
 
+### [Live Demo](https://buddybill.netlify.app/)
+
 ---
 
 ## ✨ Features
