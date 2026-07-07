@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, userSessions, adminUsers } from "@/db/schema";
-import { eq, count } from "drizzle-orm";
+import { users, userSessions } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { generateToken } from "@/lib/utils";
 
@@ -70,19 +70,6 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       // Session table might not exist yet, continue anyway
-    }
-
-    // Auto-promote first user to super_admin
-    try {
-      const [userCount] = await db.select({ total: count() }).from(users);
-      if (userCount.total === 1) {
-        await db
-          .insert(adminUsers)
-          .values({ userId: user.id, role: "super_admin" })
-          .onConflictDoNothing();
-      }
-    } catch {
-      // Admin table might not exist yet, continue anyway
     }
 
     return NextResponse.json({ ...user, sessionToken }, { status: 201 });
