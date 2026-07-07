@@ -8,57 +8,49 @@ import Link from "next/link";
 
 export default function AdminPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [sessionToken, setSessionToken] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("buddybill_user");
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        setCurrentUser(user);
-        if (user.darkMode) {
-          document.documentElement.classList.add("dark");
+    let mounted = true;
+
+    const loadAdminStatus = async () => {
+      const savedUser = localStorage.getItem("buddybill_user");
+      const savedToken = localStorage.getItem("buddybill_token");
+
+      if (savedUser && savedToken) {
+        try {
+          const user = JSON.parse(savedUser);
+          if (user.darkMode) {
+            document.documentElement.classList.add("dark");
+          }
+          const res = await fetch("/api/admin/check", {
+            headers: { "x-session-token": savedToken },
+          });
+          const data = await res.json();
+          if (!mounted) return;
+          setCurrentUser(user);
+          setSessionToken(savedToken);
+          setIsAdmin(data.isAdmin);
+        } catch {
+          if (mounted) setIsAdmin(false);
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
-        // Check admin status
-        checkAdminStatus(user.id);
-      } catch {
-        setLoading(false);
+      } else {
+        if (mounted) setLoading(false);
       }
-    } else {
-      setLoading(false);
-    }
+    };
+
+    loadAdminStatus();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
-
-  const checkAdminStatus = async (userId: number) => {
-    setChecking(true);
-    try {
-      const res = await fetch(`/api/admin/check?userId=${userId}`);
-      const data = await res.json();
-      setIsAdmin(data.isAdmin);
-    } catch {
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-      setChecking(false);
-    }
-  };
-
-  const promoteToAdmin = async () => {
-    if (!currentUser) return;
-    try {
-      // Seed admin data (this auto-promotes first user to super_admin)
-      await fetch("/api/admin/seed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: currentUser.id }),
-      });
-      setIsAdmin(true);
-    } catch (err) {
-      console.error("Failed to setup admin:", err);
-    }
-  };
 
   if (loading) {
     return (
@@ -90,29 +82,22 @@ export default function AdminPage() {
     );
   }
 
-  // Logged in but not admin — offer setup
+  // Logged in but not admin
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-purple-600" />
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-8 h-8 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Admin Setup</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Admin Access Required</h1>
           <p className="text-gray-500 mb-2">
             Signed in as <span className="font-semibold text-gray-900 dark:text-white">{currentUser.name}</span>
           </p>
           <p className="text-gray-500 text-sm mb-6">
-            Click below to activate admin access and seed default feature flags, integrations, and settings.
+            This account does not have permission to access the admin dashboard.
           </p>
           <div className="space-y-3">
-            <button
-              onClick={promoteToAdmin}
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-colors"
-            >
-              <Shield className="w-4 h-4" />
-              Activate Admin Access
-            </button>
             <Link
               href="/"
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -130,6 +115,7 @@ export default function AdminPage() {
   return (
     <AdminDashboard
       currentUser={currentUser}
+      sessionToken={sessionToken}
       onBack={() => {
         window.location.href = "/";
       }}
