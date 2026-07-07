@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { adminUsers } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { getAdminSession } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId) {
-    return NextResponse.json({ isAdmin: false });
-  }
-
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, parseInt(userId)))
-    .limit(1);
+  const admin = await getAdminSession(req);
 
   return NextResponse.json({
     isAdmin: !!admin,
