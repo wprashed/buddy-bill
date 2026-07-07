@@ -1,27 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, adminUsers, groups, groupMembers, expenses } from "@/db/schema";
-import { eq, desc, sql, count } from "drizzle-orm";
-
-async function isAdmin(userId: number): Promise<boolean> {
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-  return !!admin;
-}
+import { users, adminUsers } from "@/db/schema";
+import { desc, count } from "drizzle-orm";
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 // Get all users with stats
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
 
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   const offset = (page - 1) * limit;
 
