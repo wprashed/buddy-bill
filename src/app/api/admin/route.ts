@@ -2,30 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { adminUsers, users, groups, expenses, settlements, userSessions } from "@/db/schema";
 import { eq, sql, gte, count } from "drizzle-orm";
-
-// Check if user is admin
-async function isAdmin(userId: number): Promise<boolean> {
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-  return !!admin;
-}
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 // Get admin dashboard stats
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId) {
-    return NextResponse.json({ error: "userId is required" }, { status: 400 });
-  }
-
-  const isUserAdmin = await isAdmin(parseInt(userId));
-  if (!isUserAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   // Get stats
   const [usersCount] = await db.select({ count: count() }).from(users);
@@ -68,20 +50,15 @@ export async function GET(req: NextRequest) {
 // Create admin user
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { userId, targetUserId, role = "admin" } = body;
+  const { targetUserId, role = "admin" } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
-  if (!userId || !targetUserId) {
-    return NextResponse.json({ error: "userId and targetUserId are required" }, { status: 400 });
+  if (!targetUserId) {
+    return NextResponse.json({ error: "targetUserId is required" }, { status: 400 });
   }
 
-  // Check if requester is super_admin
-  const [requester] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-
-  if (!requester || requester.role !== "super_admin") {
+  if (admin.role !== "super_admin") {
     return NextResponse.json({ error: "Only super admins can create admins" }, { status: 403 });
   }
 
@@ -96,10 +73,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User is already an admin" }, { status: 409 });
   }
 
-  const [admin] = await db
+  const [createdAdmin] = await db
     .insert(adminUsers)
     .values({ userId: targetUserId, role })
     .returning();
 
-  return NextResponse.json(admin, { status: 201 });
+  return NextResponse.json(createdAdmin, { status: 201 });
 }
