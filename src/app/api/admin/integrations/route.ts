@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { integrations, adminUsers, adminAuditLog } from "@/db/schema";
+import { integrations, adminAuditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
-async function isAdmin(userId: number): Promise<boolean> {
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-  return !!admin;
-}
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 // Get all integrations
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   const allIntegrations = await db
     .select()
@@ -49,11 +37,9 @@ export async function GET(req: NextRequest) {
 // Create integration
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { userId, key, name, description, enabled = false, config, category = "payment", iconUrl } = body;
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { key, name, description, enabled = false, config, category = "payment", iconUrl } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
   if (!key || !name) {
     return NextResponse.json({ error: "key and name are required" }, { status: 400 });
@@ -65,7 +51,7 @@ export async function POST(req: NextRequest) {
     .returning();
 
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "integration_created",
     entityType: "integration",
     entityId: integration.id,
@@ -78,11 +64,9 @@ export async function POST(req: NextRequest) {
 // Update integration
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
-  const { userId, integrationId, enabled, config, name, description } = body;
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { integrationId, enabled, config, name, description } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
   if (!integrationId) {
     return NextResponse.json({ error: "integrationId is required" }, { status: 400 });
@@ -111,7 +95,7 @@ export async function PATCH(req: NextRequest) {
     .returning();
 
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "integration_updated",
     entityType: "integration",
     entityId: integrationId,
@@ -125,12 +109,10 @@ export async function PATCH(req: NextRequest) {
 // Delete integration
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
   const integrationId = searchParams.get("integrationId");
 
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   if (!integrationId) {
     return NextResponse.json({ error: "integrationId is required" }, { status: 400 });
@@ -145,7 +127,7 @@ export async function DELETE(req: NextRequest) {
   await db.delete(integrations).where(eq(integrations.id, parseInt(integrationId)));
 
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "integration_deleted",
     entityType: "integration",
     entityId: parseInt(integrationId),
