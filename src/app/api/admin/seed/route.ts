@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { featureFlags, integrations, systemSettings, adminUsers } from "@/db/schema";
+import { featureFlags, integrations, systemSettings } from "@/db/schema";
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 const DEFAULT_FEATURES = [
   { key: "dark_mode", name: "Dark Mode", description: "Allow users to switch to dark theme", category: "ui", enabled: true },
@@ -46,7 +47,8 @@ const DEFAULT_SETTINGS = [
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { userId } = body as { userId?: number };
+    const admin = await requireAdminSession(req, body.sessionToken);
+    if (isAuthResponse(admin)) return admin;
 
     // Seed feature flags
     for (const feature of DEFAULT_FEATURES) {
@@ -61,17 +63,6 @@ export async function POST(req: NextRequest) {
     // Seed settings
     for (const setting of DEFAULT_SETTINGS) {
       await db.insert(systemSettings).values(setting).onConflictDoNothing();
-    }
-
-    // Make the requesting user a super_admin if no admins exist
-    if (userId) {
-      const existingAdmins = await db.select().from(adminUsers).limit(1);
-      if (existingAdmins.length === 0) {
-        await db
-          .insert(adminUsers)
-          .values({ userId, role: "super_admin" })
-          .onConflictDoNothing();
-      }
     }
 
     return NextResponse.json({ success: true, message: "Admin data seeded" });
