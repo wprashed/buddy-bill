@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { featureFlags, adminUsers, adminAuditLog } from "@/db/schema";
+import { featureFlags, adminAuditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
-async function isAdmin(userId: number): Promise<boolean> {
-  const [admin] = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.userId, userId))
-    .limit(1);
-  return !!admin;
-}
+import { isAuthResponse, requireAdminSession } from "@/lib/adminAuth";
 
 // Get all feature flags
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   const flags = await db
     .select()
@@ -32,11 +20,9 @@ export async function GET(req: NextRequest) {
 // Create feature flag
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { userId, key, name, description, enabled = true, category = "general" } = body;
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { key, name, description, enabled = true, category = "general" } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
   if (!key || !name) {
     return NextResponse.json({ error: "key and name are required" }, { status: 400 });
@@ -49,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   // Log action
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "feature_flag_created",
     entityType: "feature_flag",
     entityId: flag.id,
@@ -62,11 +48,9 @@ export async function POST(req: NextRequest) {
 // Update feature flag
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
-  const { userId, flagId, enabled, name, description } = body;
-
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { flagId, enabled, name, description } = body;
+  const admin = await requireAdminSession(req, body.sessionToken);
+  if (isAuthResponse(admin)) return admin;
 
   if (!flagId) {
     return NextResponse.json({ error: "flagId is required" }, { status: 400 });
@@ -92,7 +76,7 @@ export async function PATCH(req: NextRequest) {
 
   // Log action
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "feature_flag_updated",
     entityType: "feature_flag",
     entityId: flagId,
@@ -106,12 +90,10 @@ export async function PATCH(req: NextRequest) {
 // Delete feature flag
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
   const flagId = searchParams.get("flagId");
 
-  if (!userId || !(await isAdmin(parseInt(userId)))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const admin = await requireAdminSession(req);
+  if (isAuthResponse(admin)) return admin;
 
   if (!flagId) {
     return NextResponse.json({ error: "flagId is required" }, { status: 400 });
@@ -128,7 +110,7 @@ export async function DELETE(req: NextRequest) {
 
   // Log action
   await db.insert(adminAuditLog).values({
-    adminUserId: parseInt(userId),
+    adminUserId: admin.userId,
     action: "feature_flag_deleted",
     entityType: "feature_flag",
     entityId: parseInt(flagId),
